@@ -4,7 +4,7 @@ Handles web routes, form validation, and connects the UI to CSV storage.
 """
 
 from flask import Flask, render_template, request, redirect, url_for, flash
-
+import os
 import expense_store as store
 
 app = Flask(__name__)
@@ -274,4 +274,8 @@ def delete_expense(expense_id):
     return redirect(url_for("view_expenses"))
 if __name__ == "__main__":
     store.ensure_csv_exists()
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
+    )
