@@ -1,4 +1,8 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
-expenses.csv
+.env
+.vscode/ 
+
+.idea/
