@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h2 class="text-2xl font-bold text-slate-900">Dashboard</h2>
+    <p class="text-slate-500 mt-1">Overview of your spending</p>
+</div>
+
+<!-- Summary cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <p class="text-sm font-medium text-slate-500">Total Spent</p>
+        <p class="text-3xl font-bold text-slate-900 mt-2">₹{{ "%.2f"|format(totals.total) }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <p class="text-sm font-medium text-slate-500">Total Expenses</p>
+        <p class="text-3xl font-bold text-primary-700 mt-2">{{ totals.count }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <p class="text-sm font-medium text-slate-500">Today's Spending</p>
+        <p class="text-3xl font-bold text-green-600 mt-2">₹{{ "%.2f"|format(totals.today_total) }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <p class="text-sm font-medium text-slate-500">This Month</p>
+        <p class="text-3xl font-bold text-amber-600 mt-2">₹{{ "%.2f"|format(totals.month_total) }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <!-- Recent expenses -->
+    <div class="xl:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900">Recent Expenses</h3>
+            <a href="{{ url_for('view_expenses') }}" class="text-sm text-primary-600 hover:text-primary-700 font-medium">View all</a>
+        </div>
+        <div class="p-6">
+            {% if recent_expenses %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500 border-b border-slate-100">
+                                <th class="pb-3 font-medium">Date</th>
+                                <th class="pb-3 font-medium">Label</th>
+                                <th class="pb-3 font-medium">Description</th>
+                                <th class="pb-3 font-medium text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for expense in recent_expenses %}
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="py-3 text-slate-600">{{ expense.date }}</td>
+                                <td class="py-3">
+                                    <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700">
+                                        {{ expense.label }}
+                                    </span>
+                                </td>
+                                <td class="py-3 text-slate-600">{{ expense.description or '—' }}</td>
+                                <td class="py-3 text-right font-semibold text-slate-900">₹{{ "%.2f"|format(expense.amount) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <svg class="w-12 h-12 mx-auto text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <p class="mt-4 text-slate-500">No expenses yet.</p>
+                    <a href="{{ url_for('add_expense') }}" class="inline-block mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                        Add your first expense
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Category breakdown -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-900">By Category</h3>
+        </div>
+        <div class="p-6">
+            {% if totals.category_totals %}
+                <ul class="space-y-4">
+                    {% for label, amount in totals.category_totals.items() %}
+                    <li class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-slate-700">{{ label }}</span>
+                        <span class="text-sm font-semibold text-slate-900">₹{{ "%.2f"|format(amount) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-sm text-slate-500 text-center py-8">No category data yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+        {% block title %}Expense Tracker{% endblock %}
+    </title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-slate-50 text-slate-900">
+
+    <!-- Mobile top bar -->
+    <header
+        class="lg:hidden bg-white border-b border-slate-200 px-4 py-3
+               flex items-center justify-between sticky top-0 z-20">
+
+        <h1 class="text-lg font-bold text-primary-700">
+            Expense Tracker
+        </h1>
+
+        <button
+            id="menu-toggle"
+            type="button"
+            class="p-2 rounded-lg hover:bg-slate-100"
+            aria-label="Toggle menu">
+
+            <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 6h16M4 12h16M4 18h16" />
+
+            </svg>
+
+        </button>
+    </header>
+
+
+    <!-- Main layout -->
+    <div class="flex min-h-screen">
+
+
+        <!-- ================================= -->
+        <!-- SIDEBAR -->
+        <!-- ================================= -->
+
+        <aside
+            id="sidebar"
+            class="fixed lg:static inset-y-0 left-0 z-30
+                   w-64 bg-white border-r border-slate-200
+                   transform -translate-x-full lg:translate-x-0
+                   transition-transform duration-200 ease-in-out">
+
+            <!-- Sidebar header -->
+            <div class="p-6 hidden lg:block">
+
+                <h1 class="text-xl font-bold text-primary-700">
+                    Expense Tracker
+                </h1>
+
+                <p class="text-sm text-slate-500 mt-1">
+                    Manage your spending
+                </p>
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="px-4 py-4 space-y-1">
+
+                <!-- Dashboard -->
+                <a
+                    href="{{ url_for('dashboard') }}"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg
+                           text-sm font-medium transition-colors
+                           {% if request.endpoint == 'dashboard' %}
+                               bg-primary-50 text-primary-700
+                           {% else %}
+                               text-slate-600 hover:bg-slate-100
+                               hover:text-slate-900
+                           {% endif %}">
+
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24">
+
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+
+                    </svg>
+
+                    Dashboard
+
+                </a>
+
+
+                <!-- Add Expense -->
+                <a
+                    href="{{ url_for('add_expense') }}"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg
+                           text-sm font-medium transition-colors
+                           {% if request.endpoint == 'add_expense' %}
+                               bg-primary-50 text-primary-700
+                           {% else %}
+                               text-slate-600 hover:bg-slate-100
+                               hover:text-slate-900
+                           {% endif %}">
+
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24">
+
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 4v16m8-8H4" />
+
+                    </svg>
+
+                    Add Expense
+
+                </a>
+
+
+                <!-- All Expenses -->
+                <a
+                    href="{{ url_for('view_expenses') }}"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg
+                           text-sm font-medium transition-colors
+                           {% if request.endpoint in ['view_expenses', 'edit_expense'] %}
+                               bg-primary-50 text-primary-700
+                           {% else %}
+                               text-slate-600 hover:bg-slate-100
+                               hover:text-slate-900
+                           {% endif %}">
+
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24">
+
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+
+                    </svg>
+
+                    All Expenses
+
+                </a>
+
+            </nav>
+
+        </aside>
+
+
+        <!-- ================================= -->
+        <!-- MOBILE SIDEBAR OVERLAY -->
+        <!-- ================================= -->
+
+        <div
+            id="sidebar-overlay"
+            class="fixed inset-0 bg-black/30 z-20 hidden lg:hidden">
+        </div>
+
+
+        <!-- ================================= -->
+        <!-- MAIN CONTENT -->
+        <!-- ================================= -->
+
+        <main class="flex-1 p-4 lg:p-8 overflow-x-hidden">
+
+
+            <!-- ================================= -->
+            <!-- FLASH MESSAGES -->
+            <!-- ================================= -->
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+
+                {% if messages %}
+
+                    {% for category, message in messages %}
+
+
+                        <!-- ================================= -->
+                        <!-- CSV PERMISSION ERROR POPUP -->
+                        <!-- ================================= -->
+
+                        {% if category == 'permission_error' %}
+
+                            <div
+                                id="permission-modal"
+                                class="fixed inset-0 z-50
+                                       flex items-center justify-center
+                                       bg-black/40 px-4">
+
+                                <div
+                                    class="w-full max-w-md bg-white
+                                           rounded-2xl shadow-2xl p-6">
+
+                                    <!-- Warning icon -->
+                                    <div
+                                        class="flex items-center justify-center
+                                               w-12 h-12 rounded-full
+                                               bg-yellow-100 mb-4">
+
+                                        <svg
+                                            class="w-6 h-6 text-yellow-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24">
+
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M12 9v4m0 4h.01M10.29 3.86l-7.82 14a2 2 0 001.74 3h15.58a2 2 0 001.74-3l-7.82-14a2 2 0 00-3.48 0z" />
+
+                                        </svg>
+
+                                    </div>
+
+
+                                    <!-- Title -->
+                                    <h2
+                                        class="text-xl font-bold
+                                               text-slate-900 mb-2">
+
+                                        CSV File Is Open
+
+                                    </h2>
+
+
+                                    <!-- Message -->
+                                    <p class="text-slate-600 mb-6">
+
+                                        {{ message }}
+
+                                    </p>
+
+
+                                    <!-- Close button -->
+                                    <button
+                                        type="button"
+                                        onclick="closePermissionModal()"
+                                        class="w-full bg-primary-600
+                                               hover:bg-primary-700
+                                               text-white font-semibold
+                                               py-3 px-4 rounded-lg
+                                               transition-colors">
+
+                                        OK, I Understand
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+
+                        <!-- ================================= -->
+                        <!-- NORMAL FLASH MESSAGE -->
+                        <!-- ================================= -->
+
+                        {% else %}
+
+                            <div class="mb-6">
+
+                                <div
+                                    class="px-4 py-3 rounded-lg
+                                           text-sm font-medium
+                                           {% if category == 'success' %}
+                                               bg-green-50 text-green-800
+                                               border border-green-200
+                                           {% else %}
+                                               bg-red-50 text-red-800
+                                               border border-red-200
+                                           {% endif %}">
+
+                                    {{ message }}
+
+                                </div>
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                {% endif %}
+
+            {% endwith %}
+
+
+            <!-- ================================= -->
+            <!-- PAGE CONTENT -->
+            <!-- ================================= -->
+
+            {% block content %}
+
+            {% endblock %}
+
+
+        </main>
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- JAVASCRIPT -->
+    <!-- ================================= -->
+
+    <script>
+
+        // =========================================
+        // MOBILE SIDEBAR
+        // =========================================
+
+        const menuToggle =
+            document.getElementById('menu-toggle');
+
+        const sidebar =
+            document.getElementById('sidebar');
+
+        const overlay =
+            document.getElementById('sidebar-overlay');
+
+
+        function closeSidebar() {
+
+            sidebar.classList.add('-translate-x-full');
+
+            overlay.classList.add('hidden');
+
+        }
+
+
+        function openSidebar() {
+
+            sidebar.classList.remove('-translate-x-full');
+
+            overlay.classList.remove('hidden');
+
+        }
+
+
+        if (menuToggle) {
+
+            menuToggle.addEventListener('click', () => {
+
+                if (
+                    sidebar.classList.contains(
+                        '-translate-x-full'
+                    )
+                ) {
+
+                    openSidebar();
+
+                } else {
+
+                    closeSidebar();
+
+                }
+
+            });
+
+        }
+
+
+        if (overlay) {
+
+            overlay.addEventListener(
+                'click',
+                closeSidebar
+            );
+
+        }
+
+
+        // =========================================
+        // PERMISSION ERROR MODAL
+        // =========================================
+
+        function closePermissionModal() {
+
+            const modal =
+                document.getElementById(
+                    'permission-modal'
+                );
+
+            if (modal) {
+
+                modal.remove();
+
+            }
+
+        }
+
+    </script>
+
+</body>
+
+</html>
