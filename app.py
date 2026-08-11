@@ -749,10 +749,8 @@ def delete_expense(expense_id):
         url_for("view_expenses")
     )
     
+store.ensure_database()
 if __name__ == "__main__":
-
-    store.ensure_database()
-
     app.run(
         host="0.0.0.0",
         port=int(

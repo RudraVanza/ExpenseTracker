@@ -39,6 +39,7 @@ if DB_SSL_CA:
 
 def get_connection():
     """Create and return a MySQL connection."""
+
     return mysql.connector.connect(**DB_CONFIG)
 
 
