@@ -5,9 +5,8 @@ All expenses belong to a specific user.
 """
 
 import os
-from datetime import datetime
-
 import mysql.connector
+from datetime import datetime
 from dotenv import load_dotenv
 
 
@@ -26,6 +25,13 @@ DB_CONFIG = {
     "port": int(os.getenv("DB_PORT", "3306")),
 }
 
+# SSL configuration for online MySQL
+DB_SSL_CA = os.getenv("DB_SSL_CA")
+
+if DB_SSL_CA:
+    DB_CONFIG["ssl_ca"] = DB_SSL_CA
+    DB_CONFIG["ssl_verify_cert"] = True
+
 
 # ==========================================
 # DATABASE CONNECTION
@@ -33,7 +39,6 @@ DB_CONFIG = {
 
 def get_connection():
     """Create and return a MySQL connection."""
-
     return mysql.connector.connect(**DB_CONFIG)
 
 
