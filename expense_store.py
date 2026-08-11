@@ -1,89 +1,266 @@
 """
-CSV storage helpers for the Expense Tracker.
-All expense data is read from and written to expenses.csv.
+MySQL storage helpers for the Expense Tracker.
+
+All expenses belong to a specific user.
 """
 
-import csv
 import os
 from datetime import datetime
 
-# Path to the CSV file (same folder as this script)
-CSV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "expenses.csv")
-
-# Column names used in the CSV file
-FIELDNAMES = ["id", "date", "time", "label", "description", "amount"]
+import mysql.connector
+from dotenv import load_dotenv
 
 
-def ensure_csv_exists():
-    """Create expenses.csv with a header row if it does not exist."""
-    if not os.path.exists(CSV_FILE):
-        with open(CSV_FILE, "w", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
-            writer.writeheader()
+load_dotenv()
 
 
-def load_expenses():
-    """Read all expenses from the CSV file and return them as a list of dictionaries."""
-    ensure_csv_exists()
-    expenses = []
+# ==========================================
+# DATABASE CONFIGURATION
+# ==========================================
+
+DB_CONFIG = {
+    "host": os.getenv("DB_HOST", "localhost"),
+    "user": os.getenv("DB_USER", "root"),
+    "password": os.getenv("DB_PASSWORD", ""),
+    "database": os.getenv("DB_NAME", "expense_tracker"),
+    "port": int(os.getenv("DB_PORT", "3306")),
+}
+
+
+# ==========================================
+# DATABASE CONNECTION
+# ==========================================
+
+def get_connection():
+    """Create and return a MySQL connection."""
+
+    return mysql.connector.connect(**DB_CONFIG)
+
+
+# ==========================================
+# DATABASE SETUP
+# ==========================================
+
+def ensure_database():
+    """Create required tables if they don't exist."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    # Users table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            email VARCHAR(150) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Expenses table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS expenses (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            date DATE NOT NULL,
+            time TIME NOT NULL,
+            label VARCHAR(100) NOT NULL,
+            description VARCHAR(255),
+            amount DECIMAL(10, 2) NOT NULL,
+
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE
+        )
+    """)
+
+    connection.commit()
+
+    cursor.close()
+    connection.close()
+
+
+# ==========================================
+# USER FUNCTIONS
+# ==========================================
+
+def create_user(name, email, password):
+    """Create a new user."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    sql = """
+        INSERT INTO users
+        (name, email, password)
+        VALUES (%s, %s, %s)
+    """
 
     try:
-        with open(CSV_FILE, "r", newline="", encoding="utf-8") as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                # Skip empty rows
-                if not row.get("id"):
-                    continue
-                try:
-                    expenses.append({
-                        "id": int(row["id"]),
-                        "date": row["date"],
-                        "time": row["time"],
-                        "label": row["label"],
-                        "description": row.get("description", ""),
-                        "amount": float(row["amount"]),
-                    })
-                except (ValueError, KeyError):
-                    # Skip rows with invalid data
-                    continue
-    except FileNotFoundError:
-        return []
+
+        cursor.execute(
+            sql,
+            (
+                name.strip(),
+                email.strip().lower(),
+                password,
+            )
+        )
+
+        connection.commit()
+
+        user_id = cursor.lastrowid
+
+        return user_id
+
+    except mysql.connector.IntegrityError:
+
+        connection.rollback()
+
+        return None
+
+    finally:
+
+        cursor.close()
+        connection.close()
+
+
+def get_user_by_email(email):
+    """Find a user by email."""
+
+    connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    cursor.execute(
+        """
+        SELECT id, name, email, password
+        FROM users
+        WHERE email = %s
+        """,
+        (email.strip().lower(),)
+    )
+
+    user = cursor.fetchone()
+
+    cursor.close()
+    connection.close()
+
+    return user
+
+
+def get_user_by_id(user_id):
+    """Find a user by ID."""
+
+    connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    cursor.execute(
+        """
+        SELECT id, name, email
+        FROM users
+        WHERE id = %s
+        """,
+        (user_id,)
+    )
+
+    user = cursor.fetchone()
+
+    cursor.close()
+    connection.close()
+
+    return user
+
+
+# ==========================================
+# EXPENSE FUNCTIONS
+# ==========================================
+
+def load_expenses(user_id):
+    """Load expenses belonging only to the logged-in user."""
+
+    connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    cursor.execute(
+        """
+        SELECT
+            id,
+            DATE_FORMAT(date, '%d-%m-%Y') AS date,
+            DATE_FORMAT(time, '%h:%i %p') AS time,
+            label,
+            description,
+            amount
+        FROM expenses
+        WHERE user_id = %s
+        ORDER BY id
+        """,
+        (user_id,)
+    )
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    expenses = []
+
+    for row in rows:
+
+        expenses.append({
+            "id": int(row["id"]),
+            "date": row["date"],
+            "time": row["time"],
+            "label": row["label"],
+            "description": row["description"] or "",
+            "amount": float(row["amount"]),
+        })
 
     return expenses
 
 
-def save_expenses(expenses):
-    """Write the full list of expenses back to the CSV file."""
-    ensure_csv_exists()
+def add_expense(user_id, label, description, amount):
+    """Add an expense for a specific user."""
 
-    with open(CSV_FILE, "w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        for expense in expenses:
-            writer.writerow({
-                "id": expense["id"],
-                "date": expense["date"],
-                "time": expense["time"],
-                "label": expense["label"],
-                "description": expense["description"],
-                "amount": expense["amount"],
-            })
+    connection = get_connection()
+    cursor = connection.cursor()
 
-
-def get_next_id(expenses):
-    """Return the next available expense ID."""
-    if not expenses:
-        return 1
-    return max(expense["id"] for expense in expenses) + 1
-
-
-def add_expense(label, description, amount):
-    """Add a new expense with auto-generated id, date, and time."""
-    expenses = load_expenses()
     now = datetime.now()
 
-    new_expense = {
-        "id": get_next_id(expenses),
+    sql = """
+        INSERT INTO expenses
+        (
+            user_id,
+            date,
+            time,
+            label,
+            description,
+            amount
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+
+    cursor.execute(
+        sql,
+        (
+            user_id,
+            now.date(),
+            now.time(),
+            label.strip(),
+            description.strip() if description else "",
+            amount,
+        )
+    )
+
+    connection.commit()
+
+    expense_id = cursor.lastrowid
+
+    cursor.close()
+    connection.close()
+
+    return {
+        "id": expense_id,
         "date": now.strftime("%d-%m-%Y"),
         "time": now.strftime("%I:%M %p"),
         "label": label.strip(),
@@ -91,62 +268,136 @@ def add_expense(label, description, amount):
         "amount": amount,
     }
 
-    expenses.append(new_expense)
-    save_expenses(expenses)
-    return new_expense
+
+def get_expense_by_id(expense_id, user_id):
+    """
+    Get an expense only if it belongs to the logged-in user.
+    """
+
+    connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    cursor.execute(
+        """
+        SELECT
+            id,
+            DATE_FORMAT(date, '%d-%m-%Y') AS date,
+            DATE_FORMAT(time, '%h:%i %p') AS time,
+            label,
+            description,
+            amount
+        FROM expenses
+        WHERE id = %s
+        AND user_id = %s
+        """,
+        (expense_id, user_id)
+    )
+
+    row = cursor.fetchone()
+
+    cursor.close()
+    connection.close()
+
+    if not row:
+        return None
+
+    return {
+        "id": int(row["id"]),
+        "date": row["date"],
+        "time": row["time"],
+        "label": row["label"],
+        "description": row["description"] or "",
+        "amount": float(row["amount"]),
+    }
 
 
-def get_expense_by_id(expense_id):
-    """Find and return a single expense by its ID, or None if not found."""
-    for expense in load_expenses():
-        if expense["id"] == expense_id:
-            return expense
-    return None
+def update_expense(
+    expense_id,
+    user_id,
+    label,
+    description,
+    amount
+):
+    """
+    Update an expense only if it belongs
+    to the logged-in user.
+    """
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    sql = """
+        UPDATE expenses
+
+        SET
+            label = %s,
+            description = %s,
+            amount = %s
+
+        WHERE id = %s
+        AND user_id = %s
+    """
+
+    cursor.execute(
+        sql,
+        (
+            label.strip(),
+            description.strip() if description else "",
+            amount,
+            expense_id,
+            user_id,
+        )
+    )
+
+    updated = cursor.rowcount > 0
+
+    connection.commit()
+
+    cursor.close()
+    connection.close()
+
+    return updated
 
 
-def update_expense(expense_id, label, description, amount):
-    """Update label, description, and amount for an existing expense."""
-    expenses = load_expenses()
+def delete_expense(expense_id, user_id):
+    """
+    Delete an expense only if it belongs
+    to the logged-in user.
+    """
 
-    for expense in expenses:
-        if expense["id"] == expense_id:
-            expense["label"] = label.strip()
-            expense["description"] = description.strip() if description else ""
-            expense["amount"] = amount
-            save_expenses(expenses)
-            return True
+    connection = get_connection()
+    cursor = connection.cursor()
 
-    return False
+    cursor.execute(
+        """
+        DELETE FROM expenses
+
+        WHERE id = %s
+        AND user_id = %s
+        """,
+        (
+            expense_id,
+            user_id,
+        )
+    )
+
+    deleted = cursor.rowcount > 0
+
+    connection.commit()
+
+    cursor.close()
+    connection.close()
+
+    return deleted
 
 
-def delete_expense(expense_id):
-    """Remove an expense and re-number remaining IDs starting from 1."""
-
-    expenses = load_expenses()
-
-    # Check whether the expense exists
-    updated = [
-        expense
-        for expense in expenses
-        if expense["id"] != expense_id
-    ]
-
-    # Expense was not found
-    if len(updated) == len(expenses):
-        return False
-
-    # Re-number all remaining expenses
-    for index, expense in enumerate(updated, start=1):
-        expense["id"] = index
-
-    # Save the updated list
-    save_expenses(updated)
-
-    return True
-
+# ==========================================
+# DATE / FILTER FUNCTIONS
+# ==========================================
 
 def parse_expense_datetime(expense):
-    """Convert an expense's date and time strings into a datetime object for sorting."""
+    """Convert date and time to datetime."""
+
     return datetime.strptime(
         f"{expense['date']} {expense['time']}",
         "%d-%m-%Y %I:%M %p",
@@ -154,35 +405,64 @@ def parse_expense_datetime(expense):
 
 
 def get_month_year_from_date(date_string):
-    """Extract MM-YYYY from a DD-MM-YYYY date string."""
+    """Extract MM-YYYY from DD-MM-YYYY."""
+
     parts = date_string.split("-")
+
     if len(parts) == 3:
         return f"{parts[1]}-{parts[2]}"
+
     return ""
 
 
+# ==========================================
+# DASHBOARD TOTALS
+# ==========================================
+
 def calculate_totals(expenses):
-    """Calculate dashboard totals from the expense list (not stored in CSV)."""
+    """Calculate dashboard totals."""
+
     today = datetime.now().strftime("%d-%m-%Y")
     current_month = datetime.now().strftime("%m-%Y")
 
-    total = sum(expense["amount"] for expense in expenses)
+    total = sum(
+        expense["amount"]
+        for expense in expenses
+    )
+
     count = len(expenses)
-    today_total = sum(expense["amount"] for expense in expenses if expense["date"] == today)
+
+    today_total = sum(
+        expense["amount"]
+        for expense in expenses
+        if expense["date"] == today
+    )
+
     month_total = sum(
         expense["amount"]
         for expense in expenses
-        if get_month_year_from_date(expense["date"]) == current_month
+        if get_month_year_from_date(
+            expense["date"]
+        ) == current_month
     )
 
     category_totals = {}
-    for expense in expenses:
-        label = expense["label"]
-        category_totals[label] = category_totals.get(label, 0) + expense["amount"]
 
-    # Sort categories by amount (highest first)
+    for expense in expenses:
+
+        label = expense["label"]
+
+        category_totals[label] = (
+            category_totals.get(label, 0)
+            + expense["amount"]
+        )
+
     category_totals = dict(
-        sorted(category_totals.items(), key=lambda item: item[1], reverse=True)
+        sorted(
+            category_totals.items(),
+            key=lambda item: item[1],
+            reverse=True
+        )
     )
 
     return {
@@ -194,6 +474,10 @@ def calculate_totals(expenses):
     }
 
 
+# ==========================================
+# SEARCH / FILTER
+# ==========================================
+
 def filter_and_sort_expenses(
     expenses,
     search="",
@@ -202,12 +486,14 @@ def filter_and_sort_expenses(
     month_filter="",
     sort="newest",
 ):
-    """Apply search, filters, and sorting to the expense list."""
+    """Apply search, filters and sorting."""
+
     results = list(expenses)
 
-    # Case-insensitive search by label, description, or date
     if search:
+
         search_lower = search.lower()
+
         results = [
             expense
             for expense in results
@@ -217,36 +503,65 @@ def filter_and_sort_expenses(
         ]
 
     if label_filter:
+
         results = [
             expense
             for expense in results
-            if expense["label"].lower() == label_filter.lower()
+            if expense["label"].lower()
+            == label_filter.lower()
         ]
 
     if date_filter:
-        results = [expense for expense in results if expense["date"] == date_filter]
 
-    if month_filter:
         results = [
             expense
             for expense in results
-            if get_month_year_from_date(expense["date"]) == month_filter
+            if expense["date"] == date_filter
+        ]
+
+    if month_filter:
+
+        results = [
+            expense
+            for expense in results
+            if get_month_year_from_date(
+                expense["date"]
+            ) == month_filter
         ]
 
     if sort == "oldest":
-        results.sort(key=parse_expense_datetime)
+
+        results.sort(
+            key=parse_expense_datetime
+        )
+
     elif sort == "highest":
-        results.sort(key=lambda expense: expense["amount"], reverse=True)
+
+        results.sort(
+            key=lambda expense: expense["amount"],
+            reverse=True
+        )
+
     elif sort == "lowest":
-        results.sort(key=lambda expense: expense["amount"])
+
+        results.sort(
+            key=lambda expense: expense["amount"]
+        )
+
     else:
-        # Default: newest first
-        results.sort(key=parse_expense_datetime, reverse=True)
+
+        results.sort(
+            key=parse_expense_datetime,
+            reverse=True
+        )
 
     return results
 
 
 def get_unique_labels(expenses):
-    """Return a sorted list of unique expense labels."""
-    labels = sorted({expense["label"] for expense in expenses})
-    return labels
+    """Return sorted unique labels."""
+
+    return sorted({
+        expense["label"]
+        for expense in expenses
+    })

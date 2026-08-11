@@ -96,6 +96,73 @@
                 <p class="text-sm text-slate-500 text-center py-8">No category data yet.</p>
             {% endif %}
         </div>
+
+    </div>
+
+    <!-- Export Section -->
+    <div class="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <!-- Export information -->
+            <div>
+                <h2 class="text-lg font-semibold text-slate-900">
+                    Export Your Data
+                </h2>
+
+                <p class="text-sm text-slate-500 mt-1">
+                    Download your expenses for backup or analysis.
+                </p>
+            </div>
+
+            <!-- Export buttons -->
+            <div class="flex flex-wrap gap-3">
+                <!-- CSV -->
+                <a
+                    href="{{ url_for('export_csv') }}"
+                    class="inline-flex items-center justify-center gap-2
+                        px-5 py-3
+                        bg-green-600 hover:bg-green-700
+                        text-white font-semibold
+                        rounded-lg
+                        transition-colors
+                        whitespace-nowrap">
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download CSV
+                </a>
+                <!-- Excel -->
+                <a
+                    href="{{ url_for('export_excel') }}"
+                    class="inline-flex items-center justify-center gap-2
+                        px-5 py-3
+                        bg-blue-600 hover:bg-blue-700
+                        text-white font-semibold
+                        rounded-lg
+                        transition-colors
+                        whitespace-nowrap">
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download Excel
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
