@@ -10,7 +10,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-        <form method="POST" action="{{ url_for('add_expense') }}" class="space-y-5">
+        <form method="POST" id="expense-form" action="{{ url_for('add_expense') }}" class="space-y-5">
             <!-- Amount -->
             <div>
                 <label for="amount" class="block text-sm font-medium text-slate-700 mb-1">Amount (₹)</label>
@@ -65,9 +65,12 @@
             </div>
 
             <div class="flex gap-3 pt-2">
-                <button type="submit"
-                        class="px-6 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors">
-                    Save Expense
+                <button
+                    type="submit"
+                    id="save-expense-btn"
+                    class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                    <span id="save-btn-text">Save Expense</span>
                 </button>
                 <a href="{{ url_for('dashboard') }}"
                    class="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors">
@@ -93,4 +96,58 @@
     categorySelect.addEventListener('change', toggleCustomLabel);
     toggleCustomLabel();
 </script>
+
+
+<script>
+    const expenseForm = document.getElementById("expense-form");
+
+    expenseForm.addEventListener("submit", function () {
+
+        const button = document.getElementById("save-expense-btn");
+        const text = document.getElementById("save-btn-text");
+
+        // Prevent double submission
+        if (button.disabled) {
+            return false;
+        }
+
+        // Disable button immediately
+        button.disabled = true;
+
+        // Change button appearance
+        button.classList.add(
+            "opacity-70",
+            "cursor-not-allowed"
+        );
+
+        // Show loading state
+        text.innerHTML = `
+            <span class="inline-flex items-center gap-2">
+                <svg class="animate-spin h-4 w-4"
+                     viewBox="0 0 24 24"
+                     fill="none">
+
+                    <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4">
+                    </circle>
+
+                    <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z">
+                    </path>
+
+                </svg>
+
+                Saving...
+            </span>
+        `;
+    });
+</script>
+
 {% endblock %}

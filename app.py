@@ -5,6 +5,7 @@ Handles web routes, form validation, and connects the UI to CSV storage.
 
 import os
 import csv
+import uuid
 import expense_store as store
 from functools import wraps
 from io import StringIO, BytesIO
@@ -403,7 +404,8 @@ def add_expense():
                 amount
             )
 
-        except Exception:
+        except Exception as e:
+            print("ERROR SAVING EXPENSE:", e)
 
             flash(
                 "Something went wrong while saving the expense.",
