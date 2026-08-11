@@ -8,7 +8,7 @@ import os
 import mysql.connector
 from datetime import datetime
 from dotenv import load_dotenv
-
+from zoneinfo import ZoneInfo
 
 load_dotenv()
 
@@ -231,7 +231,8 @@ def add_expense(user_id, label, description, amount):
     connection = get_connection()
     cursor = connection.cursor()
 
-    now = datetime.now()
+    # Current Indian time
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
 
     sql = """
         INSERT INTO expenses
@@ -251,7 +252,7 @@ def add_expense(user_id, label, description, amount):
         (
             user_id,
             now.date(),
-            now.time(),
+            now.time().replace(microsecond=0),  # Remove microseconds
             label.strip(),
             description.strip() if description else "",
             amount,
@@ -428,8 +429,10 @@ def get_month_year_from_date(date_string):
 def calculate_totals(expenses):
     """Calculate dashboard totals."""
 
-    today = datetime.now().strftime("%d-%m-%Y")
-    current_month = datetime.now().strftime("%m-%Y")
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    
+    today = now.strftime("%d-%m-%Y")
+    current_month = now.strftime("%m-%Y")
 
     total = sum(
         expense["amount"]
