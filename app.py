@@ -10,6 +10,7 @@ import expense_store as store
 from functools import wraps
 from io import StringIO, BytesIO
 from openpyxl import Workbook
+from datetime import timedelta
 from flask import (
     Flask,
     render_template,
@@ -32,6 +33,14 @@ app.secret_key = os.getenv(
     "SECRET_KEY",
     "development-secret-key"
 )
+
+# Remember Me settings
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+
+# Security settings
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = True
 
 def login_required(function):
     """Allow access only to logged-in users."""
@@ -233,6 +242,9 @@ def login():
             ""
         )
 
+        # Check Remember Me checkbox
+        remember_me = request.form.get("remember_me")
+
         user = store.get_user_by_email(
             email
         )
@@ -266,6 +278,12 @@ def login():
         session["user_id"] = user["id"]
         session["user_name"] = user["name"]
         session["user_email"] = user["email"]
+
+        # Remember Me
+        if remember_me:
+            session.permanent = True
+        else:
+            session.permanent = False
 
         flash(
             "Welcome back!",
