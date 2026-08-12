@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="min-h-[80vh] flex items-center justify-center">
+
+    <div class="w-full max-w-md">
+
+        <div class="bg-white rounded-2xl shadow-lg
+                    border border-slate-200 p-8">
+
+            <div class="text-center mb-6">
+
+                <h1 class="text-2xl font-bold text-slate-900">
+                    Verify Your Email
+                </h1>
+
+                <p class="text-sm text-slate-500 mt-2">
+                    We sent a 6-digit OTP to
+                </p>
+
+                <p class="font-medium text-slate-700 mt-1">
+                    {{ email }}
+                </p>
+
+            </div>
+
+            <form method="POST">
+
+                <label
+                    for="otp"
+                    class="block text-sm font-medium
+                           text-slate-700 mb-2">
+
+                    Enter OTP
+
+                </label>
+
+                <input
+                    type="text"
+                    id="otp"
+                    name="otp"
+                    maxlength="6"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    placeholder="Enter 6-digit OTP"
+                    required
+                    class="w-full px-4 py-3
+                           border border-slate-300
+                           rounded-lg
+                           text-center text-xl
+                           tracking-widest
+                           focus:ring-2
+                           focus:ring-primary-500
+                           focus:border-primary-500"
+                >
+
+                <button
+                    type="submit"
+                    class="w-full mt-5 px-6 py-3
+                           bg-primary-600
+                           hover:bg-primary-700
+                           text-white
+                           font-semibold
+                           rounded-lg
+                           transition-colors">
+
+                    Verify Email
+
+                </button>
+
+            </form>
+
+            <div class="text-center mt-5">
+
+                <a
+                    href="{{ url_for('signup') }}"
+                    class="text-sm text-primary-600
+                           hover:text-primary-700">
+
+                    Back to Sign Up
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+const otpInput = document.getElementById("otp");
+
+otpInput.addEventListener(
+    "input",
+    function () {
+
+        this.value = this.value.replace(
+            /[^0-9]/g,
+            ""
+        );
+
+    }
+);
+
+</script>
+
+{% endblock %}

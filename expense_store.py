@@ -154,6 +154,109 @@ def get_user_by_email(email):
 
     return user
 
+def save_email_verification(
+    name,
+    email,
+    password_hash,
+    otp_hash,
+    otp_expires_at,
+    last_sent_at
+):
+    """Save pending email verification."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            DELETE FROM email_verifications
+            WHERE email = %s
+            """,
+            (email,)
+        )
+
+        cursor.execute(
+            """
+            INSERT INTO email_verifications
+            (
+                name,
+                email,
+                password_hash,
+                otp_hash,
+                otp_expires_at,
+                last_sent_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                name.strip(),
+                email.strip().lower(),
+                password_hash,
+                otp_hash,
+                otp_expires_at,
+                last_sent_at
+            )
+        )
+
+        connection.commit()
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        cursor.close()
+        connection.close()
+
+def get_email_verification(email):
+    """Get pending email verification."""
+
+    connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    cursor.execute(
+        """
+        SELECT
+            id,
+            name,
+            email,
+            password_hash,
+            otp_hash,
+            otp_expires_at,
+            last_sent_at
+        FROM email_verifications
+        WHERE email = %s
+        """,
+        (email.strip().lower(),)
+    )
+
+    verification = cursor.fetchone()
+
+    cursor.close()
+    connection.close()
+
+    return verification
+
+def delete_email_verification(email):
+    """Delete completed email verification."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        DELETE FROM email_verifications
+        WHERE email = %s
+        """,
+        (email.strip().lower(),)
+    )
+
+    connection.commit()
+
+    cursor.close()
+    connection.close()
 
 def get_user_by_id(user_id):
     """Find a user by ID."""

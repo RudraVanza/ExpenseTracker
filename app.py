@@ -10,7 +10,12 @@ import expense_store as store
 from functools import wraps
 from io import StringIO, BytesIO
 from openpyxl import Workbook
-from datetime import timedelta
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
 from flask import (
     Flask,
     render_template,
@@ -26,6 +31,14 @@ from werkzeug.security import (
     generate_password_hash,
     check_password_hash,
 )
+
+load_dotenv()
+
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+MAIL_FROM = os.getenv("MAIL_FROM")
 
 app = Flask(__name__)
 
@@ -108,6 +121,56 @@ def get_filtered_user_expenses():
 
     return filtered_expenses
 
+def generate_otp():
+    """Generate a secure 6-digit OTP."""
+    return f"{random.SystemRandom().randint(0, 999999):06d}"
+
+def send_otp_email(email, otp):
+    """Send OTP using Brevo SMTP."""
+
+    message = MIMEMultipart()
+
+    message["From"] = MAIL_FROM
+    message["To"] = email
+    message["Subject"] = "Expense Tracker - Email Verification"
+
+    body = f"""
+Hello,
+
+Your Expense Tracker verification code is:
+
+{otp}
+
+This OTP will expire in 10 minutes.
+
+If you did not create this account, please ignore this email.
+
+Regards,
+Expense Tracker
+"""
+
+    message.attach(
+        MIMEText(body, "plain")
+    )
+
+    with smtplib.SMTP(
+        SMTP_HOST,
+        SMTP_PORT
+    ) as server:
+
+        server.starttls()
+
+        server.login(
+            SMTP_USERNAME,
+            SMTP_PASSWORD
+        )
+
+        server.sendmail(
+            MAIL_FROM,
+            email,
+            message.as_string()
+        )
+
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
 
@@ -133,7 +196,12 @@ def signup():
             ""
         )
 
+        # -----------------------------
+        # Validation
+        # -----------------------------
+
         if not name:
+
             flash(
                 "Name is required.",
                 "error"
@@ -144,6 +212,7 @@ def signup():
             )
 
         if not email:
+
             flash(
                 "Email is required.",
                 "error"
@@ -154,6 +223,7 @@ def signup():
             )
 
         if len(password) < 6:
+
             flash(
                 "Password must be at least 6 characters.",
                 "error"
@@ -164,6 +234,7 @@ def signup():
             )
 
         if password != confirm_password:
+
             flash(
                 "Passwords do not match.",
                 "error"
@@ -173,12 +244,16 @@ def signup():
                 "signup.html"
             )
 
-        # Check existing user
+        # -----------------------------
+        # Check existing account
+        # -----------------------------
+
         existing_user = store.get_user_by_email(
             email
         )
 
         if existing_user:
+
             flash(
                 "An account with this email already exists.",
                 "error"
@@ -188,20 +263,56 @@ def signup():
                 "signup.html"
             )
 
-        # Hash password
+        # -----------------------------
+        # Generate OTP
+        # -----------------------------
+
+        otp = generate_otp()
+
         hashed_password = generate_password_hash(
             password
         )
 
-        user_id = store.create_user(
-            name,
-            email,
-            hashed_password
+        otp_hash = generate_password_hash(
+            otp
         )
 
-        if not user_id:
+        now = datetime.now()
+
+        otp_expires_at = now + timedelta(
+            minutes=10
+        )
+
+        # -----------------------------
+        # Save pending verification
+        # -----------------------------
+
+        try:
+
+            store.save_email_verification(
+                name,
+                email,
+                hashed_password,
+                otp_hash,
+                otp_expires_at,
+                now
+            )
+
+            # Send OTP
+            send_otp_email(
+                email,
+                otp
+            )
+
+        except Exception as e:
+
+            print(
+                "OTP ERROR:",
+                e
+            )
+
             flash(
-                "Could not create account.",
+                "Could not send verification email. Please try again.",
                 "error"
             )
 
@@ -209,22 +320,154 @@ def signup():
                 "signup.html"
             )
 
-        # Login user immediately
-        session["user_id"] = user_id
-        session["user_name"] = name
-        session["user_email"] = email
+        # Remember email temporarily
+        session["verification_email"] = email
 
         flash(
-            "Account created successfully!",
+            "OTP sent to your email. Please verify your account.",
             "success"
         )
 
         return redirect(
-            url_for("dashboard")
+            url_for("verify_otp")
         )
 
     return render_template(
         "signup.html"
+    )
+
+@app.route("/verify-otp", methods=["GET", "POST"])
+def verify_otp():
+
+    email = session.get(
+        "verification_email"
+    )
+
+    if not email:
+
+        flash(
+            "Please create an account first.",
+            "error"
+        )
+
+        return redirect(
+            url_for("signup")
+        )
+
+    verification = store.get_email_verification(
+        email
+    )
+
+    if not verification:
+
+        session.pop(
+            "verification_email",
+            None
+        )
+
+        flash(
+            "Verification session expired. Please sign up again.",
+            "error"
+        )
+
+        return redirect(
+            url_for("signup")
+        )
+
+    if request.method == "POST":
+
+        otp = request.form.get(
+            "otp",
+            ""
+        ).strip()
+
+        # Check OTP format
+        if not otp.isdigit() or len(otp) != 6:
+
+            flash(
+                "Please enter a valid 6-digit OTP.",
+                "error"
+            )
+
+            return render_template(
+                "verify_otp.html",
+                email=email
+            )
+
+        # Check expiration
+        if datetime.now() > verification["otp_expires_at"]:
+
+            flash(
+                "OTP has expired. Please request a new one.",
+                "error"
+            )
+
+            return render_template(
+                "verify_otp.html",
+                email=email
+            )
+
+        # Check OTP
+        if not check_password_hash(
+            verification["otp_hash"],
+            otp
+        ):
+
+            flash(
+                "Invalid OTP.",
+                "error"
+            )
+
+            return render_template(
+                "verify_otp.html",
+                email=email
+            )
+
+        # -----------------------------
+        # OTP correct
+        # -----------------------------
+
+        user_id = store.create_user(
+            verification["name"],
+            verification["email"],
+            verification["password_hash"]
+        )
+
+        if not user_id:
+
+            flash(
+                "Could not create account. Please try again.",
+                "error"
+            )
+
+            return render_template(
+                "verify_otp.html",
+                email=email
+            )
+
+        # Remove pending verification
+        store.delete_email_verification(
+            email
+        )
+
+        # Remove temporary session
+        session.pop(
+            "verification_email",
+            None
+        )
+
+        flash(
+            "Email verified! Your account has been created successfully.",
+            "success"
+        )
+
+        return redirect(
+            url_for("login")
+        )
+
+    return render_template(
+        "verify_otp.html",
+        email=email
     )
 
 @app.route("/login", methods=["GET", "POST"])
