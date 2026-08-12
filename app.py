@@ -7,13 +7,12 @@ import os
 import csv
 import uuid
 import expense_store as store
+import random
+from email_service import send_verification_email
 from functools import wraps
 from io import StringIO, BytesIO
 from openpyxl import Workbook
-import random
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from flask import (
@@ -33,12 +32,6 @@ from werkzeug.security import (
 )
 
 load_dotenv()
-
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-MAIL_FROM = os.getenv("MAIL_FROM")
 
 app = Flask(__name__)
 
@@ -125,51 +118,6 @@ def generate_otp():
     """Generate a secure 6-digit OTP."""
     return f"{random.SystemRandom().randint(0, 999999):06d}"
 
-def send_otp_email(email, otp):
-    """Send OTP using Brevo SMTP."""
-
-    message = MIMEMultipart()
-
-    message["From"] = MAIL_FROM
-    message["To"] = email
-    message["Subject"] = "Expense Tracker - Email Verification"
-
-    body = f"""
-Hello,
-
-Your Expense Tracker verification code is:
-
-{otp}
-
-This OTP will expire in 10 minutes.
-
-If you did not create this account, please ignore this email.
-
-Regards,
-Expense Tracker
-"""
-
-    message.attach(
-        MIMEText(body, "plain")
-    )
-
-    with smtplib.SMTP(
-        SMTP_HOST,
-        SMTP_PORT
-    ) as server:
-
-        server.starttls()
-
-        server.login(
-            SMTP_USERNAME,
-            SMTP_PASSWORD
-        )
-
-        server.sendmail(
-            MAIL_FROM,
-            email,
-            message.as_string()
-        )
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -299,7 +247,7 @@ def signup():
             )
 
             # Send OTP
-            send_otp_email(
+            send_verification_email(
                 email,
                 otp
             )
