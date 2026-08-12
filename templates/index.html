@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Expense Tracker{% endblock %}
+{% block title %}FINORA - Dashboard{% endblock %}
 
 {% block content %}
 <div class="mb-8">
@@ -76,6 +76,33 @@
             {% endif %}
         </div>
     </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mt-6">
+
+        <h2 class="text-xl font-semibold text-slate-800">
+            Expenses by Category
+        </h2>
+
+        <p class="text-sm text-slate-500 mt-1 mb-5">
+            See where your money is being spent.
+        </p>
+
+        {% if category_totals %}
+
+        <div class="relative mx-auto w-full max-w-md h-80">
+            <canvas id="categoryPieChart"></canvas>
+        </div>
+
+        {% else %}
+
+        <div class="flex items-center justify-center h-64 text-slate-500">
+            No expenses available yet.
+        </div>
+
+        {% endif %}
+
+    </div>
+
 
     <!-- Category breakdown -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
@@ -165,4 +192,85 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script>
+    const categoryData = {{ category_totals | tojson }};
+
+    const categories = categoryData.map(item => item.category);
+    const totals = categoryData.map(item => Number(item.total));
+
+    const totalExpense = totals.reduce(
+        (sum, value) => sum + value,
+        0
+    );
+
+    const ctx = document.getElementById("categoryPieChart");
+
+    if (ctx && categories.length > 0) {
+
+        new Chart(ctx, {
+            type: "pie",
+
+            data: {
+                labels: categories,
+
+                datasets: [{
+                    data: totals
+                }]
+            },
+
+            plugins: [ChartDataLabels],
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    legend: {
+                        position: "bottom"
+                    },
+
+                    datalabels: {
+                        formatter: function(value) {
+
+                            const percentage =
+                                ((value / totalExpense) * 100).toFixed(1);
+
+                            return [
+                                `₹${value.toLocaleString("en-IN")}`,
+                                `${percentage}%`
+                            ];
+                        },
+
+                        font: {
+                            weight: "bold",
+                            size: 12
+                        },
+
+                        textAlign: "center"
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+
+                                const value = Number(context.raw);
+
+                                const percentage =
+                                    ((value / totalExpense) * 100).toFixed(1);
+
+                                return `${context.label}: ₹${value.toLocaleString("en-IN")} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+
 {% endblock %}

@@ -593,7 +593,6 @@ def validate_expense_form(amount_raw, label):
 @app.route("/")
 @login_required
 def dashboard():
-
     user_id = session["user_id"]
 
     expenses = store.load_expenses(
@@ -611,11 +610,16 @@ def dashboard():
         )[:5]
     )
 
+    category_totals = store.get_category_totals(
+        session["user_id"]
+    )
+    
     return render_template(
         "index.html",
         totals=totals,
         recent_expenses=recent_expenses,
         user_name=session.get("user_name"),
+        category_totals=category_totals
     )
 
 @app.route("/add", methods=["GET", "POST"])

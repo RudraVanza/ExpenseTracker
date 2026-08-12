@@ -468,6 +468,30 @@ def update_expense(
 
     return updated
 
+def get_category_totals(user_id):
+    """Get total expense amount grouped by category for a user."""
+
+    connection = get_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    sql = """
+        SELECT
+            label AS category,
+            SUM(amount) AS total
+        FROM expenses
+        WHERE user_id = %s
+        GROUP BY label
+        ORDER BY total DESC
+    """
+
+    cursor.execute(sql, (user_id,))
+
+    results = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    return results
 
 def delete_expense(expense_id, user_id):
     """
